@@ -1,0 +1,45 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: info
+spec:
+  selector:
+    app: podinfo
+  ports:
+    - port: 80
+      name: web
+      targetPort: 9898
+  clusterIP: None
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: podinfo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: podinfo
+  serviceName: nginx
+  template:
+    metadata:
+      labels:
+        app: podinfo
+    spec:
+      containers:
+        - name: podinfo
+          image: stefanprodan/podinfo
+          ports:
+            - containerPort: 9898
+              name: web
+          volumeMounts:
+            - mountPath: /usr/share/mydata
+              name: statefuldata
+  volumeClaimTemplates:
+    - metadata:
+        name: statefuldata
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi

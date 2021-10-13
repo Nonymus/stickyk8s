@@ -1,0 +1,85 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: haproxy
+spec:
+  type: NodePort
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8080
+      nodePort: 30080
+    - name: stats
+      port: 8404
+      targetPort: 8404
+      nodePort: 30084
+  selector:
+    app: haproxy
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: haproxy
+spec:
+  selector:
+    matchLabels:
+      app: haproxy
+  template:
+    metadata:
+      labels:
+        app: haproxy
+    spec:
+      containers:
+        - name: haproxy
+          image: haproxy:2.4.7
+          args:
+            - "-f"
+            - "/usr/local/etc/haproxy/haproxy.cfg"
+          ports:
+            - containerPort: 8080
+              name: web
+            - containerPort: 8404
+              name: stats
+            - containerPort: 9000
+              name: adm-socket
+          volumeMounts:
+            - mountPath: /usr/local/etc/haproxy
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: haproxy-configs
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: haproxy-configs
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw daemon
+      log stderr format raw daemon notice
+      stats socket :9000 mode 660 level admin
+    resolvers kube-dns
+      nameserver kubedns kube-dns.kube-system.svc.cluster.local:53
+      accepted_payload_size 8192
+    defaults
+      timeout connect 1s
+      timeout client 10s
+      timeout server 10s
+      timeout tunnel 90s
+      log global
+      mode http
+    frontend stats
+      bind :8404
+      stats enable
+      stats uri /
+      stats show-legends
+    frontend web
+      bind :8080
+      default_backend podinfo
+    backend podinfo
+      balance roundrobin
+      dynamic-cookie-key supergeheim
+      cookie SERVER insert indirect nocache dynamic
+      server-template dyn- 10 _web._tcp.info.default.svc.cluster.local resolvers kube-dns check init-addr none
