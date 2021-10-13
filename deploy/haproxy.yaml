@@ -42,6 +42,10 @@ spec:
               name: stats
             - containerPort: 9000
               name: adm-socket
+          readinessProbe:
+            httpGet:
+              port: stats
+              path: /healthz
           volumeMounts:
             - mountPath: /usr/local/etc/haproxy
               name: config
@@ -57,8 +61,7 @@ metadata:
 data:
   haproxy.cfg: |
     global
-      log stdout format raw daemon
-      log stderr format raw daemon notice
+      log stdout format raw daemon info
       stats socket :9000 mode 660 level admin
     resolvers kube-dns
       nameserver kubedns kube-dns.kube-system.svc.cluster.local:53
@@ -70,12 +73,16 @@ data:
       timeout tunnel 90s
       log global
       mode http
+      option httplog clf
     frontend stats
       bind :8404
+      monitor-uri /healthz
+      # should also have `monitor fail ...` but doesn't ¯\_(ツ)_/¯
       http-request use-service prometheus-exporter if { path /metrics }
       stats enable
       stats uri /stats
       stats show-legends
+      option dontlognull
     frontend web
       bind :8080
       default_backend podinfo

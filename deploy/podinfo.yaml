@@ -35,6 +35,14 @@ spec:
           volumeMounts:
             - mountPath: /usr/share/mydata
               name: statefuldata
+          readinessProbe:
+            httpGet:
+              port: web
+              path: /readyz
+          livenessProbe:
+            httpGet:
+              port: web
+              path: /healthz
   volumeClaimTemplates:
     - metadata:
         name: statefuldata
