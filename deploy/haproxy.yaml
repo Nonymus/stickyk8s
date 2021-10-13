@@ -72,8 +72,9 @@ data:
       mode http
     frontend stats
       bind :8404
+      http-request use-service prometheus-exporter if { path /metrics }
       stats enable
-      stats uri /
+      stats uri /stats
       stats show-legends
     frontend web
       bind :8080
